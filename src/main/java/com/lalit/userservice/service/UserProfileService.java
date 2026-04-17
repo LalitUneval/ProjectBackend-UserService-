@@ -8,6 +8,10 @@ import com.lalit.userservice.exception.ProfileNotFoundException;
 import com.lalit.userservice.exception.ResourceNotFoundException;
 import com.lalit.userservice.repository.UserProfileRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +27,16 @@ public class UserProfileService {
     private final UserProfileRepository userProfileRepository;
 
 
+    //Caching used to group multiple evict
+    //cacheEvict was used to create stragtey to update the redis values
+    //allEntries means all the value usersBycountry mapped with the ahme, gand etc update this all the value
+    @Caching(evict = {
+            @CacheEvict(value = "usersByCountry", allEntries = true),
+            @CacheEvict(value = "usersByCity", allEntries = true),
+            @CacheEvict(value = "usersByVisaType", allEntries = true),
+            @CacheEvict(value = "usersBySkill", allEntries = true),
+            @CacheEvict(value = "searchUsers", allEntries = true)
+    })
     public CreateProfileResponse createProfile(CreateProfileRequest request) {
         // Check if profile already exists
         if (userProfileRepository.existsById(request.getId())) {
@@ -45,12 +59,16 @@ public class UserProfileService {
         return mapToCreateProfileResponse(savedProfile);
     }
 
+
+    @Cacheable(value = "userProfile", key = "#userId")
     public CreateProfileResponse getProfile(Long userId) {
         UserProfile profile = userProfileRepository.findById(userId)
                 .orElseThrow(() -> new 	ProfileNotFoundException("Profile not found for user: " + userId));
 
         return mapToCreateProfileResponse(profile);
     }
+
+    @Cacheable(value = "usersByIds", key = "#userIds.toString()")
     public List<CreateProfileResponse> getUsersByIds(List<Long> userIds) {
 
         List<UserProfile> users = userProfileRepository.findAllById(userIds);
@@ -60,6 +78,19 @@ public class UserProfileService {
                 .collect(Collectors.toList());
     }
 
+    @Caching(
+            put = {
+                    @CachePut(value = "userProfile", key = "#userId")
+            },
+            evict = {
+                    @CacheEvict(value = "usersByIds", allEntries = true),
+                    @CacheEvict(value = "usersByCountry", allEntries = true),
+                    @CacheEvict(value = "usersByCity", allEntries = true),
+                    @CacheEvict(value = "usersByVisaType", allEntries = true),
+                    @CacheEvict(value = "usersBySkill", allEntries = true),
+                    @CacheEvict(value = "searchUsers", allEntries = true)
+            }
+    )
     public UserProfileResponse updateProfile(Long userId, UpdateProfileRequest request) {
         UserProfile profile = userProfileRepository.findById(userId)
                 .orElseThrow(() -> new ProfileNotFoundException("Profile not found for user: " + userId));
@@ -89,6 +120,7 @@ public class UserProfileService {
     }
 
 
+    @Cacheable(value = "usersByCountry", key = "#country")
     public List<SearchResponse> getUsersByCountry(String country) {
         List<UserProfile> profiles = userProfileRepository.findByOriginCountry(country);
         if(profiles.isEmpty())
@@ -100,7 +132,7 @@ public class UserProfileService {
                 .collect(Collectors.toList());
     }
 
-
+    @Cacheable(value = "usersByCity", key = "#city")
     public List<SearchResponse> getUsersByCity(String city) {
         List<UserProfile> profiles = userProfileRepository.findByCurrentCity(city);
 
@@ -114,7 +146,7 @@ public class UserProfileService {
                 .collect(Collectors.toList());
     }
 
-
+    @Cacheable(value = "usersByVisaType", key = "#visaType")
     public List<SearchResponse> getUsersByVisaType(String visaType) {
         List<UserProfile> profiles = userProfileRepository.findByVisaType(visaType);
 
@@ -128,7 +160,7 @@ public class UserProfileService {
                 .collect(Collectors.toList());
     }
 
-
+    @Cacheable(value = "usersByCountryAndCity", key = "#country + '-' + #city")
     public List<UserProfileResponse> getUsersByCountryAndCity(String country, String city) {
         List<UserProfile> profiles = userProfileRepository.findByOriginCountryAndCurrentCity(country, city);
 
@@ -142,7 +174,7 @@ public class UserProfileService {
                 .collect(Collectors.toList());
     }
 
-
+    @Cacheable(value = "usersBySkill", key = "#skill")
     public List<SearchResponse> getUsersBySkill(String skill) {
         List<UserProfile> profiles = userProfileRepository.findBySkillsContaining(skill);
 
@@ -156,7 +188,7 @@ public class UserProfileService {
                 .collect(Collectors.toList());
     }
 
-
+    @Cacheable(value = "usersByName", key = "#name")
     public List<UserProfileResponse> searchUsersByName(String name) {
         List<UserProfile> profiles = userProfileRepository.findByFullNameContainingIgnoreCase(name);
 
@@ -170,6 +202,7 @@ public class UserProfileService {
                 .collect(Collectors.toList());
     }
 
+    @Cacheable(value = "searchUsers", key = "#country + '-' + #city + '-' + #visaType")
     public List<SearchResponse> searchUsers(String country, String city, String visaType) {
         List<UserProfile> profiles = userProfileRepository.searchUsers(country, city, visaType);
 
@@ -183,6 +216,15 @@ public class UserProfileService {
                 .collect(Collectors.toList());
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "userProfile", key = "#userId"),
+            @CacheEvict(value = "usersByIds", allEntries = true),
+            @CacheEvict(value = "usersByCountry", allEntries = true),
+            @CacheEvict(value = "usersByCity", allEntries = true),
+            @CacheEvict(value = "usersByVisaType", allEntries = true),
+            @CacheEvict(value = "usersBySkill", allEntries = true),
+            @CacheEvict(value = "searchUsers", allEntries = true)
+    })
     public void deleteProfile(Long userId) {
         if (!userProfileRepository.existsById(userId)) {
             throw new ProfileNotFoundException("Profile not found for user: " + userId);
