@@ -4,9 +4,6 @@ server:
 spring:
   application:
     name: user-service
-  jackson:
-    serialization:
-      write-dates-as-timestamps: false
 
   cache:
     redis:
@@ -26,11 +23,12 @@ spring:
 
   data:
     redis:
-      host: ${SPRING_DATA_REDIS_HOST:red-d7h0pvl7vvec73aktth0}
-      port: ${SPRING_DATA_REDIS_PORT:6379}
-      password:
+      host: quick-antelope-92541.upstash.io
+      port: 6379
+      username: default
+      password: gQAAAAAAAWl9AAIncDJmYzgwMzZkY2RhMTY0ZmE4YjJlZjBiODdlNTE4ZjMwZHAyOTI1NDE
       ssl:
-        enabled: false
+        enabled: true
 
 eureka:
   client:
